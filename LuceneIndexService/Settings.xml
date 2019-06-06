@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<configuration>
+  <scheduler 
+    timeout="30" 
+    maxJobs="10" 
+    logDirectoryPath="D:\Indexes\Logs" 
+    enableLogging="true"
+    logConvertLogFileToXmlJob="false"
+    logSaveJobLogEntriesJob="false"
+    logCheckLogFilesJob="false"
+    logSaveExceptionLogEntriesJob="false"
+  />
+  <indexes>
+    <index name="Intranet" configurationPath="D:\Indexes\Intranet.xml" />
+  </indexes>
+</configuration>
