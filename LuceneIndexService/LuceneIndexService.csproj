@@ -179,5 +179,19 @@
   <ItemGroup>
     <Folder Include="Classes\" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\HeikoHinz\HeikoHinz\HeikoHinz.csproj">
+      <Project>{685cf72b-45b7-4a8b-a88c-6c4a998bb990}</Project>
+      <Name>HeikoHinz</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\Libraries\HeikoHinz.JobScheduling\HeikoHinz.JobScheduling.csproj">
+      <Project>{0e099ac7-6648-44d9-a9d9-1aadee1f5764}</Project>
+      <Name>HeikoHinz.JobScheduling</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\Libraries\HeikoHinz.Lucene.Net\HeikoHinz.Lucene.Net.csproj">
+      <Project>{9d235fc2-fd6d-4c7d-9fe5-90df09194a11}</Project>
+      <Name>HeikoHinz.Lucene.Net</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

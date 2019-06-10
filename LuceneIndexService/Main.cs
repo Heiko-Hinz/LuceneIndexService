@@ -93,27 +93,6 @@ namespace HeikoHinz.LuceneIndexService
                 Settings = new Configuration(this.ServiceName, doc.Root);
 
                 SchedulingServiceInstance.Start();
-                if (scheduler.EnableLogging)
-                {
-                    scheduler.EnqeueJob(new JobScheduling.CheckLogFilesJob(DateTime.Today.AddDays(1).AddMinutes(1), JobScheduling.Frequency.Daily));
-                    scheduler.EnqeueJob(new JobScheduling.CheckLogFilesJob(DateTime.Now.AddMinutes(1), JobScheduling.Frequency.Once));
-                    scheduler.EnqeueJob(
-                        new JobScheduling.SaveJobLogEntriesJob()
-                        {
-                            StartDate = DateTime.Now.AddMinutes(1),
-                            EndDate = DateTime.MaxValue,
-                            Frequency = JobScheduling.Frequency.EveryMinute
-                        }
-                    );
-                    scheduler.EnqeueJob(
-                        new JobScheduling.SaveExceptionLogEntriesJob()
-                        {
-                            StartDate = DateTime.Now.AddMinutes(1),
-                            EndDate = DateTime.MaxValue,
-                            Frequency = JobScheduling.Frequency.EveryMinute
-                        }
-                    );
-                }
 
                 foreach (ServiceIndex index in Settings.Indexes)
                 {
