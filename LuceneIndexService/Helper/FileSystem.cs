@@ -5,11 +5,42 @@ using System.Linq;
 using System.Security.AccessControl;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml;
 
 namespace HeikoHinz.LuceneIndexService.Helper
 {
     public static class FileSystem
     {
+        public static List<string> GetFolderAuthorizedRoles(string path, List<string> parentRoles)
+        {
+            List<string> folderAuthorizedRoles = new List<string>();
+
+            string configFilePath = System.IO.Path.Combine(path, "Web.config");
+            if (File.Exists(configFilePath))
+            {
+                XmlDocument configDoc = new XmlDocument();
+                configDoc.Load(configFilePath);
+                if (configDoc != null)
+                {
+                    XmlNode allow = configDoc.DocumentElement.SelectSingleNode("//authorization/allow[@roles]");
+                    if (allow != null)
+                        folderAuthorizedRoles = allow.Attributes["roles"].Value.Split(",".ToCharArray()).ToList();
+                    else
+                        folderAuthorizedRoles.AddRange(parentRoles);
+                    XmlNode deny = configDoc.DocumentElement.SelectSingleNode("//authorization/deny[@roles]");
+                    if (deny != null)
+                    {
+                        List<string> rolesDenied = deny.Attributes["roles"].Value.Split(",".ToCharArray()).ToList();
+                        folderAuthorizedRoles.RemoveAll(r => rolesDenied.Contains(r));
+                    }
+                }
+            }
+            else
+                folderAuthorizedRoles.AddRange(parentRoles);
+
+            return folderAuthorizedRoles;
+        }
+
         public static List<Tuple<string, string, bool>> GetReadingRights(FileInfo fileInfo)
         {
             List<Tuple<string, string, bool>> readingRights = new List<Tuple<string, string, bool>>();

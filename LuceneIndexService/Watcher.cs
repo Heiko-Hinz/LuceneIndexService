@@ -14,12 +14,18 @@ namespace HeikoHinz.LuceneIndexService
     public class Watcher
     {
         FileSystemWatcher watcher { get; set; } = new FileSystemWatcher();
+
         public string Path { get; set; }
+
         public List<string> Extensions { get; set; } = new List<string>();
 
         public ServiceIndex Index { get; set; }
+
         public Web Web { get; set; }
+
         public Uri Url { get; set; }
+
+        public List<string> FolderAuthorizedRoles { get; set; } = new List<string>();
 
         public Watcher()
         {
@@ -54,7 +60,7 @@ namespace HeikoHinz.LuceneIndexService
                         Type bType = Type.GetType(job.Namespace + "." + job.ClassName);
                         if (SchedulingServiceInstance.Instance.QueuedJobs.SingleOrDefault(j => j.GetType() == bType && bType.GetProperty("Web").GetValue(j) == Web && bType.GetProperty("Path").GetValue(j).ToString() == e.FullPath) == null)
                         {
-                            BaseJob bJob = (BaseJob)Activator.CreateInstance(bType, new object[] { Index, Web, file, e.FullPath, new Uri(Url, e.Name) });
+                            BaseJob bJob = (BaseJob)Activator.CreateInstance(bType, new object[] { Index, Web, file, e.FullPath, new Uri(Url, e.Name), FolderAuthorizedRoles });
                             SchedulingServiceInstance.Instance.EnqeueJob(bJob);
                         }
                     }
@@ -66,11 +72,12 @@ namespace HeikoHinz.LuceneIndexService
                 {
                     DirectoryInfo di = new DirectoryInfo(e.FullPath);
                     Settings.Directory directory = Web.Directories.Single(d => d.Include);
-                    Main.StartWatcher(Index, Web, new Uri(Url, e.Name + "/"), di, Web.Filter.Split(";".ToCharArray()).ToList(), directory.IndexSubfolders, Web.Directories.Where(d => !d.Include).Select(d => d.Path).ToList(), false);
+                    List<string> _folderAuthorizedRoles = Helper.FileSystem.GetFolderAuthorizedRoles(di.FullName, FolderAuthorizedRoles);
+                    Main.StartWatcher(Index, Web, new Uri(Url, e.Name + "/"), di, Web.Filter.Split(";".ToCharArray()).ToList(), directory.IndexSubfolders, Web.Directories.Where(d => !d.Include).Select(d => d.Path).ToList(), _folderAuthorizedRoles, false);
                 }
                 else if (e.ChangeType == WatcherChangeTypes.Deleted)
                 {
-                    SchedulingServiceInstance.Instance.EnqeueJob(new Jobs.CheckPathJob(Index, Web, e.FullPath, new Uri(Url, e.Name + "/"), DateTime.Now, false), true);
+                    SchedulingServiceInstance.Instance.EnqeueJob(new Jobs.CheckPathJob(Index, Web, e.FullPath, new Uri(Url, e.Name + "/"), DateTime.Now, FolderAuthorizedRoles, false), true);
 
                     Main.StopWatcher(e.FullPath);
                 }

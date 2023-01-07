@@ -21,43 +21,19 @@ using System.Xml.Serialization;
 
 namespace HeikoHinz.LuceneIndexService.Jobs
 {
-    public class PageAnalysingJob : BaseJob
+    public class PageAnalysingJob : BaseAnalysingJob
     {
         private delegate void MethodDelegate();
         private MethodDelegate invoker;
-
-        [XmlIgnore]
-        public ServiceIndex Index { get; set; }
-
-        [XmlIgnore]
-        public Web Web { get; set; }
-
-        [XmlIgnore]
-        public Settings.FileType FileSettings { get; set; }
-
-        [XmlIgnore]
-        public string Path { get; set; }
-
-        [XmlIgnore]
-        public Uri Url { get; set; }
-
         #region Konstruktor
 
-        public PageAnalysingJob()
+        public PageAnalysingJob() : base()
         {
             Init();
         }
-        public PageAnalysingJob(ServiceIndex index, Web web, Settings.FileType fileSettings, string path, Uri url)
+        public PageAnalysingJob(ServiceIndex index, Web web, Settings.FileType fileSettings, string path, Uri url, List<string> folderAuthorizedRoles) :
+            base(index, web, fileSettings, path, url, folderAuthorizedRoles)
         {
-            this.Index = index;
-            this.Web = web;
-            this.FileSettings = fileSettings;
-            this.Path = path;
-            this.Url = url;
-
-            this.Frequency = Frequency.Once;
-            this.StartDate = DateTime.Now.AddSeconds(10);
-            this.EndDate = DateTime.Now.AddSeconds(10);
             Init();
         }
 
@@ -66,12 +42,7 @@ namespace HeikoHinz.LuceneIndexService.Jobs
         #region Init
         private void Init()
         {
-            Properties.AddProperty("Id", Id);
-            Properties.AddProperty("Index", Index.Name);
-            Properties.AddProperty("Web", Web.Url);
-            Properties.AddProperty("FileSettings", (object)FileSettings.Name);
-            Properties.AddProperty("Path", Path);
-            Properties.AddProperty("Url", Url);
+            DocumentType = DocumentTypes.Page;
             Description = "Analysiert die Webseite und fügt sie dem Index hinzu.";
             invoker = new MethodDelegate(this.Method);
         }
@@ -86,20 +57,37 @@ namespace HeikoHinz.LuceneIndexService.Jobs
                     return;
 
                 BooleanQuery identitiesQuery = new BooleanQuery();
-
                 Document document = new Document();
 
-                FileInfo fi = new FileInfo(Path);
-                
+                CommonAnalyzing(document, identitiesQuery);
+
                 HtmlDocument fDoc = new HtmlDocument();
                 fDoc.Load(Path);
                 
                 HtmlDocument pDoc = new HtmlDocument();
-                WebClient wc = new WebClient();
-                if ((Web.UseRoleBasedCredentials || Web.UseCredentials) && Web.RequestCredentials.Any())
+                Helper.AnalyzerWebClient wc = new Helper.AnalyzerWebClient();
+                wc.Encoding = Encoding.UTF8;
+                //wc.UseCookieContainer = true;
+                if (Web.UseCredentials && Web.RequestCredentials.Any())
                 {
-                    Credential credential = Web.RequestCredentials.First();
-                    wc.Credentials = new NetworkCredential(credential.UserName, credential.Password, credential.Domain);
+                    Credential credential = Web.RequestCredentials.FirstOrDefault(c => c.AuthenticationMode == Web.AuthenticationMode);
+                    if (credential != null)
+                    {
+                        if (Web.AuthenticationMode == AuthenticationModes.Basic)
+                        {
+                            string encoded = Convert.ToBase64String(System.Text.Encoding.GetEncoding("ISO-8859-1").GetBytes(credential.UserName + ":" + credential.Password));
+                            wc.Headers.Add("Authorization", "Basic " + encoded);
+                        }
+                        else if (Web.AuthenticationMode == AuthenticationModes.Windows)
+                            wc.Credentials = new NetworkCredential(credential.UserName, credential.Password, credential.Domain);
+
+                        if (Web.FormsAuthentication != null)
+                        {
+                            wc.UseCookieContainer = Web.FormsAuthentication.UseCookieContainer;
+                            if(Web.FormsAuthentication.Cookie != null)
+                                wc.Headers.Add(HttpRequestHeader.Cookie, Web.FormsAuthentication.Cookie);
+                        }
+                    }
                 }
                 Uri url = new Uri(Url.AbsoluteUri);
                 if(Web.ExtendRequest)
@@ -107,60 +95,47 @@ namespace HeikoHinz.LuceneIndexService.Jobs
                     foreach (KeyValuePair<string, string> parameter in Web.RequestParameters)
                         url = url.AddParameter(parameter.Key, parameter.Value);
 
-                    if(Web.EncryptQuery && Web.EncryptionAlgorithms.ContainsKey("RijndaelManaged"))
+                    if(Web.EncryptQuery)
                     {
                         string[] p = url.AbsoluteUri.Split("?".ToCharArray());
-                        url = new Uri(p[0] + "?" + Encryption.UrlEncrypt(p[1], Web.EncryptionAlgorithms["RijndaelManaged"]));
+                        string query = "";
+
+                        if (Web.EncryptionAlgorithm == "RijndaelManaged" && Web.EncryptionAlgorithms.ContainsKey(Web.EncryptionAlgorithm))
+                            query = Encryption.UrlEncrypt_RijndaelManaged(p[1], Web.EncryptionAlgorithms[Web.EncryptionAlgorithm]);
+                        else if (Web.EncryptionAlgorithm == "DES" && Web.EncryptionAlgorithms.ContainsKey(Web.EncryptionAlgorithm))
+                            query = Encryption.UrlEncrypt_DESCryptoServiceProvider(p[1], Web.EncryptionAlgorithms[Web.EncryptionAlgorithm]);
+
+                        url = new Uri(p[0] + "?" + query);
                     }
                 }
-                wc.Encoding = Encoding.UTF8;
-                pDoc.LoadHtml(wc.DownloadString(url));
 
-                foreach (SimpleProperty property in FileSettings.Properties.Where(p => p.Source == DataSources.FileInfo))
+                string response = null;
+                try
                 {
-                    PropertyInfo member = fi.GetType().GetProperty(property.MemberName);
-                    object value = member.GetValue(fi);
-
-                    if (value != null)
-                    {
-                        AbstractField field = property.GetDocumentField(value);
-                        document.Add(field);
-                        
-                        if (property.Identity)
-                            identitiesQuery.Add(property.CreateQuery(value), Occur.MUST);
-                    }
+                    response = wc.DownloadString(url);
                 }
-                foreach (SimpleProperty property in FileSettings.Properties.Where(p => p.Source == DataSources.Uri))
+                catch(Exception exc)
                 {
-                    PropertyInfo member = Url.GetType().GetProperty(property.MemberName);
-                    object value = member.GetValue(Url);
-
-                    if (value != null)
-                    {
-                        AbstractField field = property.GetDocumentField(value);
-                        document.Add(field);
-
-                        if (property.Identity)
-                            identitiesQuery.Add(property.CreateQuery(value), Occur.MUST);
-                    }
+                    ;
                 }
-                foreach (ListProperty property in FileSettings.Properties.Where(p => p.Source == DataSources.List))
+                if (Web.FormsAuthentication != null && !String.IsNullOrEmpty(Web.FormsAuthentication.QueryField))
                 {
-                    List<string> value = new List<string>();
-
-                    if (property.Name == "AuthorizedGroups")
+                    if (response == null && wc.Address != null && !String.IsNullOrEmpty(wc.Address.Query) && wc.Address.Query.Contains(Web.FormsAuthentication.QueryField + "="))
                     {
-                        List<Tuple<string, string, bool>> groupRights = Helper.FileSystem.GetReadingRights(fi);
-                        List<string> groups = property.Filter.Split(";,".ToCharArray()).ToList();
-                        foreach(string group in groupRights.Where(gr => gr.Item3 && groups.Contains(gr.Item2)).Select(gr => gr.Item2))
-                        {
-                            Lucene.Net.Documents.Field field = new Lucene.Net.Documents.Field(property.Name, group, Lucene.Net.Documents.Field.Store.YES, property.Index, property.TermVector);
-                            field.Boost = property.Boost;
-                            document.Add(field);
-                        }
+                        response = wc.DownloadString(wc.Address);
+                        Web.FormsAuthentication.AquireCookies(wc.ResponseHeaders);
+                    }
+                    else if(wc.ResponseUri != null && !String.IsNullOrEmpty(wc.ResponseUri.Query) && wc.ResponseUri.Query.Contains(Web.FormsAuthentication.QueryField + "="))
+                    {
+                        if (wc.Headers.HasKeys() && wc.Headers.AllKeys.ToList().Contains(HttpRequestHeader.Cookie.ToString()))
+                            wc.Headers.Remove(HttpRequestHeader.Cookie);
+                        wc.Headers.Add(HttpRequestHeader.Cookie, Web.RequestAuthenticationCookie());
+                        response = wc.DownloadString(url);
                     }
                 }
-                
+                pDoc.LoadHtml(response);
+
+               
                 if (fDoc.DocumentNode != null)
                 {
                     HtmlNode root = fDoc.DocumentNode;
@@ -170,7 +145,10 @@ namespace HeikoHinz.LuceneIndexService.Jobs
                         HtmlNode erg = root.SelectSingleNode(property.Xpath);
                         if(erg != null && erg.Attributes[property.MemberName] != null)
                         {
-                            string value = erg.Attributes[property.MemberName].Value;
+                            object value = HtmlEntity.DeEntitize(erg.Attributes[property.MemberName].Value);
+                            object membersValue = GetTasksMembersValue(property);
+                            value = property.PerformTasks(value, membersValue);
+
                             AbstractField field = property.GetDocumentField(value);
                             document.Add(field);
 
@@ -185,29 +163,13 @@ namespace HeikoHinz.LuceneIndexService.Jobs
 
                     foreach (DataProperty property in FileSettings.Properties.Where(p => p.Source == DataSources.PageContent))
                     {
-                        if (property.SingleContent)
+                        HtmlNodeCollection list = root.SelectNodes(property.Xpath);
+                        if (list != null)
                         {
-                            HtmlNode node = root.SelectSingleNode(property.Xpath);
-                            if (node != null)
+                            foreach (HtmlNode node in list)
                             {
-                                if (property.RemoveContent)
-                                    node.Remove();
-                                else
-                                    AddPageContentField(node, property, document);
-                            }
-                        }
-                        else
-                        {
-                            HtmlNodeCollection list = root.SelectNodes(property.Xpath);
-                            if (list != null)
-                            {
-                                foreach(HtmlNode node in list)
-                                {
-                                    if (property.RemoveContent)
-                                        node.Remove();
-                                    else
-                                        AddPageContentField(node, property, document);
-                                }
+                                property.PerformTasks(node);
+                                Helper.Document.AddPageContentField(node, property, document);
                             }
                         }
                     }
@@ -231,14 +193,7 @@ namespace HeikoHinz.LuceneIndexService.Jobs
             }
         }
 
-        private void AddPageContentField(HtmlNode node, DataProperty property, Document document)
-        {
-            string value = node.InnerText.Trim();
-            Lucene.Net.Documents.Field field = new Lucene.Net.Documents.Field(property.Name, value, Lucene.Net.Documents.Field.Store.YES, property.Index, property.TermVector);
-            field.Boost = property.Boost;
-            document.Add(field);
-        }
-
+ 
         #endregion
 
         #region Execute

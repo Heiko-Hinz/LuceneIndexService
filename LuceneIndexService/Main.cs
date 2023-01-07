@@ -9,6 +9,7 @@ using System.Security.Permissions;
 using System.ServiceProcess;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml;
 using System.Xml.Linq;
 using System.Xml.XPath;
 using HeikoHinz.LuceneIndexService.Settings;
@@ -94,11 +95,21 @@ namespace HeikoHinz.LuceneIndexService
 
                 SchedulingServiceInstance.Start();
 
+                var changedIndexes = Settings.Indexes.Where(i => i.ConfigurationChanged);
+                if (changedIndexes.Any())
+                {
+                    doc.Save(configFile);
+                    this.EventLog.WriteEntry("Dateien werden nach Änderung der Konfiguration neu indiziert.");
+                }
+
                 foreach (ServiceIndex index in Settings.Indexes)
                 {
                     foreach (Web web in index.Webs)
                     {
                         Settings.Directory directory = web.Directories.Single(d => d.Include);
+
+                        List<string> folderAuthorizedRoles = Helper.FileSystem.GetFolderAuthorizedRoles(directory.Path, web.Roles);
+
                         StartWatcher(
                             index,
                             web,
@@ -107,58 +118,100 @@ namespace HeikoHinz.LuceneIndexService
                             web.Filter.Split(";".ToCharArray()).ToList(),
                             directory.IndexSubfolders,
                             web.Directories.Where(d => !d.Include).Select(d => d.Path).ToList(),
+                            folderAuthorizedRoles,
                             index.ConfigurationChanged
                         );
                     }
                 }
-                var changedIndexes = Settings.Indexes.Where(i => i.ConfigurationChanged);
-                if (changedIndexes.Any())
-                {
-                    doc.Save(configFile);
-                    foreach (ServiceIndex index in changedIndexes)
-                        index.ConfigurationChanged = false;
-                    this.EventLog.WriteEntry("Dateien werden nach Änderung der Konfiguration neu indiziert.");
-                }
                 this.EventLog.WriteEntry("Monitoring started");
-                /*
+
+
+
+
+                /*ServiceIndex WebIndex = Settings.Indexes.First();
+
+                PerFieldAnalyzerWrapper wrapper = WebIndex.CreateAnalyzer();
+
                 BooleanQuery booleanClauses = new BooleanQuery();
-                ServiceIndex _index = Settings.Indexes.First();
-                Lucene.Net.Analysis.Analyzer standardAnalyzer = _index.IndexingService.Writer.Analyzer;
+                Analyzer standardAnalyzer = wrapper;
 
-                booleanClauses.Add(_index.Webs.First().FileSettings.First().Properties.Single(p => p.Name == "active").CreateQuery(0), Occur.MUST);
+                booleanClauses.Add(WebIndex.Fields.Single(f => f.Name == "active").CreateQuery(1), Occur.MUST);
 
-                //TermQuery _query = new TermQuery(new Term("active", "1"));
+                //TermQuery _query = new TermQuery(new Term("Path", @"D:\Webs\Intranet\Default.aspx"));
                 //booleanClauses.Add(_query, Occur.MUST);
 
-                TermQuery _query = new TermQuery(new Term("Path", @"C:\Webs\Intranet\Default.aspx"));
-                //booleanClauses.Add(_query, Occur.MUST);
-
-                QueryParser parser = new QueryParser(ServiceIndex.Version, "authorized-groups", standardAnalyzer);
-                Query query = parser.Parse("authorized-groups:TEAGVertrieb");
+                QueryParser parser = new QueryParser(HeikoHinz.LuceneIndexService.Settings.Index.Version, "authorized-groups", standardAnalyzer);
+                Query query = parser.Parse("authorized-groups:TEAG");
                 booleanClauses.Add(query, Occur.MUST);
 
                 BooleanQuery subBooleanClauses = new BooleanQuery();
-                List<string> fields = new List<string>() { "content", "title", "keywords" };
+                List<string> fields = new List<string>() { "title", "keywords", "content" };
                 foreach (string field in fields)
                 {
-                    parser = new QueryParser(ServiceIndex.Version, field, standardAnalyzer);
-                    query = parser.Parse("TEAG");
+                    parser = new QueryParser(HeikoHinz.LuceneIndexService.Settings.Index.Version, field, standardAnalyzer);
+                    parser.DefaultOperator = QueryParser.Operator.AND;
+                    query = parser.Parse("Bauprojekthandbuch");
                     subBooleanClauses.Add(query, Occur.SHOULD);
                 }
 
                 booleanClauses.Add(subBooleanClauses, Occur.MUST);
 
-                IndexReader reader = DirectoryReader.Open(Settings.Indexes.First().Directory, true);
-
-
+                IndexReader reader = DirectoryReader.Open(WebIndex.Directory, true);
                 Searcher searcher = new IndexSearcher(reader);
+
                 if (searcher.MaxDoc > 0)
                 {
                     TopDocs result = searcher.Search(booleanClauses, searcher.MaxDoc);
-                    int erg = result.TotalHits;
-                }
-                */
-            }
+
+                    if (result.TotalHits > 0)
+                    {
+                        ScoreDoc[] scoreDocs = result.ScoreDocs;
+
+                        int erg = scoreDocs.Length;
+                    }
+                }*/
+
+
+
+                        /*
+                        BooleanQuery booleanClauses = new BooleanQuery();
+                        ServiceIndex _index = Settings.Indexes.First();
+                        Lucene.Net.Analysis.Analyzer standardAnalyzer = _index.IndexingService.Writer.Analyzer;
+
+                        booleanClauses.Add(_index.Webs.First().FileSettings.First().Properties.Single(p => p.Name == "active").CreateQuery(0), Occur.MUST);
+
+                        //TermQuery _query = new TermQuery(new Term("active", "1"));
+                        //booleanClauses.Add(_query, Occur.MUST);
+
+                        TermQuery _query = new TermQuery(new Term("Path", @"C:\Webs\Intranet\Default.aspx"));
+                        //booleanClauses.Add(_query, Occur.MUST);
+
+                        QueryParser parser = new QueryParser(ServiceIndex.Version, "authorized-groups", standardAnalyzer);
+                        Query query = parser.Parse("authorized-groups:TEAGVertrieb");
+                        booleanClauses.Add(query, Occur.MUST);
+
+                        BooleanQuery subBooleanClauses = new BooleanQuery();
+                        List<string> fields = new List<string>() { "content", "title", "keywords" };
+                        foreach (string field in fields)
+                        {
+                            parser = new QueryParser(ServiceIndex.Version, field, standardAnalyzer);
+                            query = parser.Parse("TEAG");
+                            subBooleanClauses.Add(query, Occur.SHOULD);
+                        }
+
+                        booleanClauses.Add(subBooleanClauses, Occur.MUST);
+
+                        IndexReader reader = DirectoryReader.Open(Settings.Indexes.First().Directory, true);
+
+
+                        Searcher searcher = new IndexSearcher(reader);
+                        if (searcher.MaxDoc > 0)
+                        {
+                            TopDocs result = searcher.Search(booleanClauses, searcher.MaxDoc);
+                            int erg = result.TotalHits;
+                        }
+                        */
+                    }
             catch (Exception exc)
             {
                 List<string> stack = new List<string>();
@@ -174,11 +227,11 @@ namespace HeikoHinz.LuceneIndexService
             this.EventLog.WriteEntry("Scheduling service started");
         }
 
-        public static void StartWatcher(ServiceIndex index, Web web, Uri url, DirectoryInfo directory, List<string> extensions, bool indexSubFolder, List<string> excludedPaths, bool reIndex)
+        public static void StartWatcher(ServiceIndex index, Web web, Uri url, DirectoryInfo directory, List<string> extensions, bool indexSubFolder, List<string> excludedPaths, List<string> folderAuthorizedRoles, bool reIndex)
         {
             if (directory.Exists && !excludedPaths.Contains(directory.FullName))
             {
-                SchedulingServiceInstance.Instance.EnqeueJob(new Jobs.CheckPathJob(index, web, directory.FullName, url, reIndex));
+                SchedulingServiceInstance.Instance.EnqeueJob(new Jobs.CheckPathJob(index, web, directory.FullName, url, folderAuthorizedRoles, reIndex));
 
                 Watcher watcher = new Watcher()
                 {
@@ -186,14 +239,17 @@ namespace HeikoHinz.LuceneIndexService
                     Web = web,
                     Path = directory.FullName,
                     Extensions = extensions,
-                    Url = url
+                    Url = url,
+                    FolderAuthorizedRoles = folderAuthorizedRoles
                 };
                 watcher.Start();
                 Watchers.Add(watcher);
 
                 foreach(DirectoryInfo subfolder in directory.GetDirectories())
                 {
-                    StartWatcher(index, web, new Uri(url, subfolder.Name + "/"), subfolder, extensions, indexSubFolder, excludedPaths, reIndex);
+                    List<string> _folderAuthorizedRoles = Helper.FileSystem.GetFolderAuthorizedRoles(subfolder.FullName, folderAuthorizedRoles);
+
+                    StartWatcher(index, web, new Uri(url, subfolder.Name + "/"), subfolder, extensions, indexSubFolder, excludedPaths, _folderAuthorizedRoles, reIndex);
                 }
             }
         }
@@ -211,17 +267,17 @@ namespace HeikoHinz.LuceneIndexService
         {
             try
             {
-                foreach (Watcher watcher in Watchers)
+                for (int i = Watchers.Count - 1; i >= 0; i--)
                 {
-                    watcher.Stop();
+                    Watchers[i].Stop();
                 }
                 this.EventLog.WriteEntry("Monitoring stopped");
 
-                foreach (ServiceIndex index in Settings.Indexes)
+                for (int i = Settings.Indexes.Count - 1; i >= 0; i--)
                 {
+                    ServiceIndex index = Settings.Indexes[i];
                     index.IndexingService.Stop();
                     this.EventLog.WriteEntry(String.Format("Indexing für '{0}' wurde beendet.", index.Path));
-
                 }
 
                 SchedulingServiceInstance.Stop();

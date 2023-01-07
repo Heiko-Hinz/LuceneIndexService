@@ -11,6 +11,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HeikoHinz.JobScheduling", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HeikoHinz", "..\..\HeikoHinz\HeikoHinz\HeikoHinz.csproj", "{685CF72B-45B7-4A8B-A88C-6C4A998BB990}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EPocalipse.IFilter", "..\..\Libraries\EPocalipse.IFilter\EPocalipse.IFilter.csproj", "{400462CE-40B3-498F-B95A-B1D2AE679359}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HeikoHinz.IFilter", "..\..\Libraries\HeikoHinz.IFilter\HeikoHinz.IFilter.csproj", "{F370C4EA-1F38-4019-A689-BCDA210E218A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -51,6 +55,22 @@ Global
 		{685CF72B-45B7-4A8B-A88C-6C4A998BB990}.Release|Any CPU.Build.0 = Release|Any CPU
 		{685CF72B-45B7-4A8B-A88C-6C4A998BB990}.Release|x64.ActiveCfg = Release|x64
 		{685CF72B-45B7-4A8B-A88C-6C4A998BB990}.Release|x64.Build.0 = Release|x64
+		{400462CE-40B3-498F-B95A-B1D2AE679359}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{400462CE-40B3-498F-B95A-B1D2AE679359}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{400462CE-40B3-498F-B95A-B1D2AE679359}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{400462CE-40B3-498F-B95A-B1D2AE679359}.Debug|x64.Build.0 = Debug|Any CPU
+		{400462CE-40B3-498F-B95A-B1D2AE679359}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{400462CE-40B3-498F-B95A-B1D2AE679359}.Release|Any CPU.Build.0 = Release|Any CPU
+		{400462CE-40B3-498F-B95A-B1D2AE679359}.Release|x64.ActiveCfg = Release|Any CPU
+		{400462CE-40B3-498F-B95A-B1D2AE679359}.Release|x64.Build.0 = Release|Any CPU
+		{F370C4EA-1F38-4019-A689-BCDA210E218A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F370C4EA-1F38-4019-A689-BCDA210E218A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F370C4EA-1F38-4019-A689-BCDA210E218A}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{F370C4EA-1F38-4019-A689-BCDA210E218A}.Debug|x64.Build.0 = Debug|Any CPU
+		{F370C4EA-1F38-4019-A689-BCDA210E218A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F370C4EA-1F38-4019-A689-BCDA210E218A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F370C4EA-1F38-4019-A689-BCDA210E218A}.Release|x64.ActiveCfg = Release|Any CPU
+		{F370C4EA-1F38-4019-A689-BCDA210E218A}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

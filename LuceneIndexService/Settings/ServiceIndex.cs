@@ -1,9 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Xml.Linq;
 using System.Xml.Serialization;
 
@@ -25,7 +21,7 @@ namespace HeikoHinz.LuceneIndexService.Settings
         public ServiceIndex(XElement index) : base(index)
         {
             FileInfo fi = new FileInfo(this.ConfigurationPath);
-            HeikoHinz.Helper.SetMembersValue(index, "configurationLastChange", this, fi.LastWriteTime);
+            //HeikoHinz.Helper.SetMembersValue(index, "configurationLastChange", this, fi.LastWriteTime);
                         
             ConfigurationChanged = index.Attribute("configurationLastChange") == null || index.Attribute("configurationLastChange").Value != fi.LastWriteTime.ToString();
             if (ConfigurationChanged)

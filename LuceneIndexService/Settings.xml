@@ -11,6 +11,9 @@
     logSaveExceptionLogEntriesJob="false"
   />
   <indexes>
-    <index name="Intranet" configurationPath="D:\Indexes\Intranet.xml" />
+    <!--<index name="Intranet" configurationPath="D:\Indexes\Intranet.xml" />-->
+    <!--<index name="TEAG" configurationPath="D:\Indexes\TEAG.xml" />-->
+    <!--<index name="TMZ" configurationPath="D:\Indexes\TMZ.xml" />-->
+    <index name="TNK" configurationPath="D:\Indexes\TNK.xml" />
   </indexes>
 </configuration>

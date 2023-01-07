@@ -19,7 +19,7 @@ using System.Xml.Serialization;
 
 namespace HeikoHinz.LuceneIndexService.Jobs
 {
-    public class RemovePageJob : BaseJob
+    public class RemoveFileJob : BaseJob
     {
         private delegate void MethodDelegate();
         private MethodDelegate invoker;
@@ -39,19 +39,23 @@ namespace HeikoHinz.LuceneIndexService.Jobs
         [XmlIgnore]
         public Uri Url { get; set; }
 
+        [XmlIgnore]
+        public List<string> FolderAuthorizedRoles { get; set; } = new List<string>();
+
         #region Konstruktor
 
-        public RemovePageJob()
+        public RemoveFileJob()
         {
             Init();
         }
-        public RemovePageJob(ServiceIndex index, Web web, Settings.FileType fileSettings, string path, Uri url)
+        public RemoveFileJob(ServiceIndex index, Web web, Settings.FileType fileSettings, string path, Uri url, List<string> folderAuthorizedRoles)
         {
             this.Index = index;
             this.Web = web;
             this.FileSettings = fileSettings;
             this.Path = path;
             this.Url = url;
+            this.FolderAuthorizedRoles = folderAuthorizedRoles; // should be always null
 
             this.Frequency = Frequency.Once;
             this.StartDate = DateTime.Now;

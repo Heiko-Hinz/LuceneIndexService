@@ -17,6 +17,7 @@ using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Xml;
 using System.Xml.Serialization;
 
 namespace HeikoHinz.LuceneIndexService.Jobs
@@ -41,6 +42,9 @@ namespace HeikoHinz.LuceneIndexService.Jobs
         [XmlAttribute]
         public bool ReAnalyze { get; set; }
 
+        [XmlIgnore]
+        public List<string> FolderAuthorizedRoles { get; set; } = new List<string>();
+
 
         #region Konstruktor
 
@@ -48,12 +52,13 @@ namespace HeikoHinz.LuceneIndexService.Jobs
         {
             Init();
         }
-        public CheckPathJob(ServiceIndex index, Web web, string path, Uri url, bool reAnalyze)
+        public CheckPathJob(ServiceIndex index, Web web, string path, Uri url, List<string> folderAuthorizedRoles, bool reAnalyze)
         {
             this.Index = index;
             this.Web = web;
             this.Path = path;
             this.Url = url;
+            this.FolderAuthorizedRoles = folderAuthorizedRoles;
             this.ReAnalyze = reAnalyze;
 
             this.Frequency = Frequency.Once;
@@ -61,7 +66,7 @@ namespace HeikoHinz.LuceneIndexService.Jobs
             this.EndDate = DateTime.Now.AddSeconds(10);
             Init();
         }
-        public CheckPathJob(ServiceIndex index, Web web, string path, Uri url, DateTime startDate, bool reAnalyze)
+        public CheckPathJob(ServiceIndex index, Web web, string path, Uri url, DateTime startDate, List<string> folderAuthorizedRoles, bool reAnalyze)
         {
             this.Index = index;
             this.Web = web;
@@ -69,6 +74,7 @@ namespace HeikoHinz.LuceneIndexService.Jobs
             this.Url = url;
             this.StartDate = startDate;
             this.EndDate = startDate;
+            this.FolderAuthorizedRoles = folderAuthorizedRoles;
             this.ReAnalyze = reAnalyze;
 
             this.Frequency = Frequency.Once;
@@ -99,6 +105,7 @@ namespace HeikoHinz.LuceneIndexService.Jobs
                     return;
 
                 DirectoryInfo directory = new DirectoryInfo(Path);
+
 
                 foreach (Settings.FileType fileSettings in Web.FileSettings)
                 {
@@ -134,7 +141,7 @@ namespace HeikoHinz.LuceneIndexService.Jobs
 
                                 FileInfo fi = new FileInfo(field.StringValue);
                                 if (!fi.Exists)
-                                    ScheduleJob(typeDeleted, fileSettings, fi);
+                                    ScheduleJob(typeDeleted, fileSettings, fi, null);
                             }
                         }
                     }
@@ -192,14 +199,14 @@ namespace HeikoHinz.LuceneIndexService.Jobs
                                         Lucene.Net.Documents.Field field = document.GetField(LastChangeProperties.First().Name);
 
                                         if (ReAnalyze || field.StringValue != fi.LastWriteTime.Ticks.ToString())
-                                            ScheduleJob(typeChanged, fileSettings, fi);
+                                            ScheduleJob(typeChanged, fileSettings, fi, FolderAuthorizedRoles);
                                     }
                                     else
                                     {
                                         if (typeCreated == null)
                                             continue;
 
-                                        ScheduleJob(typeCreated, fileSettings, fi);
+                                        ScheduleJob(typeCreated, fileSettings, fi, FolderAuthorizedRoles);
                                     }
                                 }
                             }
@@ -218,11 +225,11 @@ namespace HeikoHinz.LuceneIndexService.Jobs
             }
         }
 
-        private void ScheduleJob(Type jobType, Settings.FileType fileSettings, FileInfo fileInfo)
+        private void ScheduleJob(Type jobType, Settings.FileType fileSettings, FileInfo fileInfo, List<string> folderAuthorizedRoles)
         {
             if (SchedulingServiceInstance.Instance.QueuedJobs.SingleOrDefault(j => j.GetType() == jobType && jobType.GetProperty("Web").GetValue(j) == Web && jobType.GetProperty("Path").GetValue(j).ToString() == fileInfo.FullName) == null)
             {
-                BaseJob bJob = (BaseJob)Activator.CreateInstance(jobType, new object[] { Index, Web, fileSettings, fileInfo.FullName, new Uri(Url, fileInfo.Name) });
+                BaseJob bJob = (BaseJob)Activator.CreateInstance(jobType, new object[] { Index, Web, fileSettings, fileInfo.FullName, new Uri(Url, fileInfo.Name), folderAuthorizedRoles });
                 SchedulingServiceInstance.Instance.EnqeueJob(bJob);
             }
         }

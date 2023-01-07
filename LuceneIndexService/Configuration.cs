@@ -42,7 +42,6 @@ namespace HeikoHinz.LuceneIndexService
                 if (!System.IO.Directory.Exists(scheduler.LogDirectoryPath))
                     System.IO.Directory.CreateDirectory(scheduler.LogDirectoryPath);
 
-
                 if (settings.Element("indexes") != null)
                 {
                     foreach (XElement index in settings.Element("indexes").Elements("index"))
